@@ -450,57 +450,78 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
         """Optimized Treeview update using incremental refresh with thread safety."""
         try:
             with self.data_manager.lock:
-                # Get current items in the Treeview
-                existing_iids = set()
-                def get_all_children(parent=""):
-                    children = self.tree.get_children(parent)
-                    for child in children:
-                        existing_iids.add(child)
-                        get_all_children(child)
+                # 1. 获取当前 Treeview 中所有的节点
+                existing_iids = self._get_existing_tree_iids()
                 
-                get_all_children()
+                # 2. 更新文件夹并获取活跃的文件夹 ID
+                active_folder_iids = self._refresh_folders()
                 
-                # 1. Update Folders
-                active_folder_iids = set()
-                for f in self.data_manager.data["folders"]:
-                    fid = f["id"]
-                    active_folder_iids.add(fid)
-                    text = f"📁 {f['name']}"
-                    if self.tree.exists(fid):
-                        if self.tree.item(fid, "text") != text:
-                            self.tree.item(fid, text=text)
-                    else:
-                        self.tree.insert("", "end", iid=fid, text=text)
+                # 3. 更新会话并获取活跃的会话 ID
+                active_session_iids = self._refresh_sessions()
                 
-                # 2. Update Sessions
-                active_session_iids = set()
-                for s in self.data_manager.data["sessions"]:
-                    sid = s["id"]
-                    active_session_iids.add(sid)
-                    text = f"📄 {s['title']}"
-                    parent = s.get("parent", "")
-                    
-                    # Ensure parent is valid or set to root
-                    if parent and not self.tree.exists(parent):
-                        parent = ""
-                    
-                    if self.tree.exists(sid):
-                        # Check if item needs to move parent or update text
-                        current_parent = self.tree.parent(sid)
-                        if current_parent != parent or self.tree.item(sid, "text") != text:
-                            self.tree.move(sid, parent, "end")
-                            self.tree.item(sid, text=text)
-                    else:
-                        self.tree.insert(parent, "end", iid=sid, text=text)
-                
-                # 3. Cleanup: Remove items no longer in data
+                # 4. 清理不再存在的数据节点
                 active_all_iids = active_folder_iids.union(active_session_iids)
-                for iid in existing_iids:
-                    if iid not in active_all_iids:
-                        if self.tree.exists(iid):
-                            self.tree.delete(iid)
+                self._cleanup_tree(existing_iids, active_all_iids)
+                
         except Exception as e:
             logger.error(f"Failed to refresh tree: {e}")
+
+    def _get_existing_tree_iids(self):
+        """Helper to recursively get all current item IDs in the tree."""
+        existing_iids = set()
+        def get_all_children(parent=""):
+            children = self.tree.get_children(parent)
+            for child in children:
+                existing_iids.add(child)
+                get_all_children(child)
+        
+        get_all_children()
+        return existing_iids
+
+    def _refresh_folders(self):
+        """Helper to update folder nodes and return active folder IDs."""
+        active_folder_iids = set()
+        for f in self.data_manager.data["folders"]:
+            fid = f["id"]
+            active_folder_iids.add(fid)
+            text = f"📁 {f['name']}"
+            
+            if self.tree.exists(fid):
+                if self.tree.item(fid, "text") != text:
+                    self.tree.item(fid, text=text)
+            else:
+                self.tree.insert("", "end", iid=fid, text=text)
+        return active_folder_iids
+
+    def _refresh_sessions(self):
+        """Helper to update session nodes and return active session IDs."""
+        active_session_iids = set()
+        for s in self.data_manager.data["sessions"]:
+            sid = s["id"]
+            active_session_iids.add(sid)
+            text = f"📄 {s['title']}"
+            parent = s.get("parent", "")
+            
+            # Ensure parent is valid or set to root
+            if parent and not self.tree.exists(parent):
+                parent = ""
+            
+            if self.tree.exists(sid):
+                # Check if item needs to move parent or update text
+                current_parent = self.tree.parent(sid)
+                if current_parent != parent or self.tree.item(sid, "text") != text:
+                    self.tree.move(sid, parent, "end")
+                    self.tree.item(sid, text=text)
+            else:
+                self.tree.insert(parent, "end", iid=sid, text=text)
+        return active_session_iids
+
+    def _cleanup_tree(self, existing_iids, active_all_iids):
+        """Helper to remove tree items that no longer exist in data."""
+        for iid in existing_iids:
+            if iid not in active_all_iids:
+                if self.tree.exists(iid):
+                    self.tree.delete(iid)
 
     def on_tree_select(self, event):
         selection = self.tree.selection()
