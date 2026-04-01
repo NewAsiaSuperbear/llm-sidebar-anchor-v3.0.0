@@ -2,7 +2,9 @@ import logging
 import os
 import time
 from functools import wraps
+
 from llm_scribe.config import LOG_FILE
+
 
 def setup_logger():
     """Configures the logging system for the application."""

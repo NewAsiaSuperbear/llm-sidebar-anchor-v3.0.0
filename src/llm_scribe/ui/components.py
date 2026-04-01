@@ -1,6 +1,8 @@
 import customtkinter as ctk
+
 from llm_scribe.config import COLORS
 from llm_scribe.ui.styles import AppStyles
+
 
 class Toast(ctk.CTkFrame):
     def __init__(self, master, message, duration=2000, **kwargs):

@@ -1,20 +1,20 @@
-import customtkinter as ctk
-import tkinter as tk
-from tkinter import ttk, messagebox, filedialog, simpledialog, scrolledtext
-import os
-import time
 import ctypes
-from datetime import datetime
-from llm_scribe.config import APP_NAME, VERSION, COLORS, DEFAULT_DATA_FILE
-from llm_scribe.ui.styles import AppStyles
-from llm_scribe.ui.components import Toast, EmptyState, StatusIndicator
+import os
+import tkinter as tk
+from tkinter import messagebox, scrolledtext, simpledialog, ttk
+
+import customtkinter as ctk
+
+from llm_scribe.config import APP_NAME, COLORS, VERSION
+from llm_scribe.core.clipboard_monitor import ClipboardMonitor
+from llm_scribe.core.data_manager import DataManager
+from llm_scribe.core.exporter import Exporter
+from llm_scribe.core.security import sanitize_input
+from llm_scribe.ui.components import StatusIndicator, Toast
 from llm_scribe.ui.export_dialog import ExportDialog
 from llm_scribe.ui.move_dialog import MoveDialog
+from llm_scribe.ui.styles import AppStyles
 from llm_scribe.ui.wizard import FirstRunWizard
-from llm_scribe.core.data_manager import DataManager
-from llm_scribe.core.clipboard_monitor import ClipboardMonitor
-from llm_scribe.core.exporter import Exporter
-from llm_scribe.core.security import safe_path_check, sanitize_input
 from llm_scribe.utils.backup import create_backup
 from llm_scribe.utils.logger import logger, perf_log
 
@@ -261,7 +261,8 @@ class MainWindow(ctk.CTk):
         guide_window.attributes("-topmost", True)
         
         # Header
-        header = ctk.CTkLabel(guide_window, text="LLM Scribe Pro 使用指南 (Guide)", font=self.fonts["title"])
+        header_text = "LLM Scribe Pro 使用指南 (Guide)"
+        header = ctk.CTkLabel(guide_window, text=header_text, font=self.fonts["title"])
         header.pack(pady=20)
         
         # Scrollable Content
@@ -279,27 +280,27 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
 
 --- 1. Scribe Mode / 速记模式 ---
 [EN] Toggle the '🚀 Scribe' button to 'ON'. The app will automatically capture anything you copy to your clipboard and append it to the current session with a timestamp.
-[CN] 开启顶部的“🚀 速记”按钮为“ON”。程序将自动捕捉您复制到剪贴板的任何内容，并带上时间戳记录到当前会话中。
+[CN] 开启顶部的 '🚀 速记' 按钮为 'ON'. 程序将自动捕捉您复制到剪贴板的任何内容, 并带上时间戳记录到当前会话中。
 
 --- 2. Sessions & Folders / 会话与文件夹 ---
 [EN] Use '📄 New Session' to start a fresh dialogue log. Use '📁 Folder' to categorize and group your sessions. You can drag and drop (planned) or move items using the context menu.
-[CN] 点击“📄 新建”开始一段新的对话记录。点击“📁 归档”创建文件夹，帮助您分类管理不同的项目。
+[CN] 点击 '📄 新建' 开始一段新的对话记录。点击 '📁 归档' 创建文件夹, 帮助您分类管理不同的项目。
 
 --- 3. Real-time Search / 实时搜索 ---
 [EN] Type in the search bar to instantly filter sessions by title or content. The list will update as you type.
-[CN] 在搜索框输入关键词，程序会实时根据标题或内容过滤会话。
+[CN] 在搜索框输入关键词, 程序会实时根据标题或内容过滤会话。
 
 --- 4. Bookmarks / 书签 ---
 [EN] In any session, type a name in the bookmark field and click '🔖 Add'. Double-click a bookmark in the right panel to instantly jump to that position.
-[CN] 在会话中，输入书签名称并点击“🔖 添加”。双击右侧面板中的书签，即可快速跳转到文本中的对应位置。
+[CN] 在会话中, 输入书签名称并点击 '🔖 添加'. 双击右侧面板中的书签, 即可快速跳转到文本中的对应位置。
 
 --- 5. Opacity & Pin / 透明度与置顶 ---
 [EN] Use the slider to adjust window transparency. Use the '📌 Pin' checkbox to keep the window always on top of other applications.
-[CN] 使用滑动条调整窗口透明度。勾选“📌 置顶”可使窗口始终保持在其他应用程序上方。
+[CN] 使用滑动条调整窗口透明度。勾选 '📌 置顶' 可使窗口始终保持在其他应用程序上方。
 
 --- 6. Security & Data / 安全与数据 ---
 [EN] All data is encrypted and stored locally in your %APPDATA% folder. No data is sent to external servers. Use '💾 Backup' regularly to save snapshots of your data.
-[CN] 所有数据均经过加密并存储在本地 %APPDATA% 文件夹中。数据不会上传到外部服务器。请定期使用“💾 备份”功能保存数据快照。
+[CN] 所有数据均经过加密并存储在本地 %APPDATA% 文件夹中。数据不会上传到外部服务器。请定期使用 '💾 备份' 功能保存数据快照。
         """
         guide_text.insert(tk.END, text.strip())
         guide_text.configure(state=tk.DISABLED) # Read-only
@@ -328,7 +329,8 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
         """Windows-only: Safely set window styles to avoid GUI hang."""
         try:
             hwnd = self.winfo_id()
-            if not hwnd: return
+            if not hwnd:
+                return
             
             # Get current extended styles
             styles = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
@@ -342,9 +344,11 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
             
             if styles != new_styles:
                 user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new_styles)
-                # CRITICAL: SetWindowPos with SWP_FRAMECHANGED is required for styles to take effect correctly
-                user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 
-                                   SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED)
+                # CRITICAL: SetWindowPos with SWP_FRAMECHANGED is required for styles to take effect
+                user32.SetWindowPos(
+                    hwnd, 0, 0, 0, 0, 0, 
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED
+                )
                 
                 status = "ON" if enable else "OFF"
                 logger.info(f"Ghost Mode (Click-Through) turned {status}")
@@ -376,7 +380,7 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
     def on_wizard_complete(self):
         """Handles completion of the first-run wizard."""
         self.data_manager.save_config()
-        Toast(self, "向导完成！开启速记之旅吧。", duration=3000).show()
+        Toast(self, "向导完成! 开启速记之旅吧。", duration=3000).show()
 
     def toggle_scribe_mode(self):
         new_state = not self.is_scribe_mode.get()
@@ -391,40 +395,53 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
 
     @perf_log
     def on_clipboard_captured(self, timestamp, content):
-        """Callback when clipboard content is captured."""
-        try:
-            if not self.is_scribe_mode.get():
-                logger.info("Clipboard capture ignored: Scribe Mode is OFF.")
-                return
-            
-            logger.info(f"CAPTURED: {content[:30]}...") # Log first 30 chars for debugging
-            
-            if self.current_session_id is None:
-                self.create_new_session("自动捕获 (Auto Capture)")
-            
-            self.dialog_text.insert(tk.END, f"\n{timestamp} ", "timestamp")
-            self.dialog_text.insert(tk.END, f"{content}\n")
-            self.dialog_text.see(tk.END)
-            self.save_current_session()
-            
-            # Ensure toast is shown on top and doesn't block
-            self.after(0, lambda: Toast(self, "已记录内容 (Captured)").show())
-        except Exception as e:
-            logger.error(f"Error in on_clipboard_captured: {e}")
+        """Callback when clipboard content is captured with thread safety."""
+        def update_ui():
+            try:
+                if not self.is_scribe_mode.get():
+                    return
+                
+                sanitized = sanitize_input(content.strip())
+                if not sanitized:
+                    return
+
+                logger.info(f"CAPTURED: {sanitized[:30]}...")
+                
+                if self.current_session_id is None:
+                    self.create_new_session("自动捕获 (Auto Capture)")
+                
+                # Append content to the editor
+                self.dialog_text.insert(tk.END, f"\n{timestamp} ", "timestamp")
+                self.dialog_text.insert(tk.END, f"{sanitized}\n")
+                self.dialog_text.see(tk.END)
+                self.save_current_session()
+                
+                Toast(self, "已记录内容 (Captured)", duration=1500).show()
+            except Exception as e:
+                logger.error(f"Error updating UI with clipboard content: {e}")
+        
+        # Schedule UI update on the main thread to ensure thread safety
+        self.after(0, update_ui)
 
     def toggle_always_on_top(self):
         self.attributes("-topmost", self.is_always_on_top.get())
 
     def create_new_session(self, title=None):
         if not title:
-            title = simpledialog.askstring("新建会话 (New Session)", "请输入会话名称 (Enter Name):") or f"会话 {len(self.data_manager.data['sessions'])+1}"
+            prompt_title = "新建会话 (New Session)"
+            prompt_msg = "请输入会话名称 (Enter Name):"
+            default_name = f"会话 {len(self.data_manager.data['sessions'])+1}"
+            title = simpledialog.askstring(prompt_title, prompt_msg) or default_name
         
         sid = self.data_manager.create_session(title)
         self.refresh_tree()
         self.select_session(sid)
 
     def create_folder(self):
-        name = simpledialog.askstring("新建文件夹 (New Folder)", "请输入文件夹名称 (Folder Name):") or "新归档 (New Folder)"
+        prompt_title = "新建文件夹 (New Folder)"
+        prompt_msg = "请输入文件夹名称 (Folder Name):"
+        default_name = "新归档 (New Folder)"
+        name = simpledialog.askstring(prompt_title, prompt_msg) or default_name
         self.data_manager.create_folder(name)
         self.refresh_tree()
 
@@ -527,51 +544,45 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
             logger.error(f"Failed to save current session: {e}")
 
     def rename_item(self):
-        """Renames a tree item with error handling."""
+        """Renames the selected session or folder with thread safety."""
         try:
             selection = self.tree.selection()
-            if not selection: return
+            if not selection:
+                return
             iid = selection[0]
             new_name = simpledialog.askstring("重命名 (Rename)", "输入新名称 (Enter New Name):")
             if new_name:
                 self.data_manager.rename_item(iid, new_name)
                 self.refresh_tree()
-                if iid == self.current_session_id:
-                    self.session_title_var.set(sanitize_input(new_name))
+                Toast(self, "重命名成功!").show()
         except Exception as e:
             logger.error(f"Rename failed: {e}")
 
     def move_item(self):
         """Triggers the move flow for the selected session."""
         selection = self.tree.selection()
-        if not selection: return
+        if not selection:
+            return
         iid = selection[0]
         
         # We only support moving sessions, not folders (yet)
         if iid.startswith("folder_"):
-            Toast(self, "暂不支持移动文件夹 (Folders cannot be moved)", fg_color=COLORS["danger"]).show()
+            Toast(self, "暂不支持移动文件夹 (Folders cannot be moved)", 
+                  fg_color=COLORS["danger"]).show()
             return
-            
-        item_text = self.tree.item(iid, "text").strip().replace("📄 ", "")
         
         def do_move(target_folder_id):
-            try:
-                self.data_manager.update_session(iid, parent=target_folder_id)
-                self.refresh_tree()
-                Toast(self, "已成功移至目标归档 (Moved Successfully)").show()
-                logger.info(f"Session {iid} moved to folder {target_folder_id}")
-            except Exception as e:
-                logger.error(f"Move failed: {e}")
-                Toast(self, "移动失败", fg_color=COLORS["danger"]).show()
+            self.data_manager.update_session(iid, parent=target_folder_id)
+            self.refresh_tree()
+            Toast(self, "移动成功 (Moved)").show()
 
-        # Get all folders for the dialog
-        folders = self.data_manager.data["folders"]
-        MoveDialog(self, item_text, folders, on_confirm=do_move)
+        MoveDialog(self, self.data_manager.data["folders"], on_confirm=do_move)
 
     def export_item(self):
         """Triggers the export flow for the selected session or folder."""
         selection = self.tree.selection()
-        if not selection: return
+        if not selection:
+            return
         iid = selection[0]
         
         is_folder = iid.startswith("folder_")
@@ -599,9 +610,10 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
         """Deletes a tree item with error handling."""
         try:
             selection = self.tree.selection()
-            if not selection: return
+            if not selection:
+                return
             iid = selection[0]
-            if messagebox.askyesno("确认删除 (Delete)", "确定要删除该项目吗？"):
+            if messagebox.askyesno("确认删除 (Delete)", "确定要删除该项目吗?"):
                 self.data_manager.delete_item(iid)
                 if iid == self.current_session_id:
                     self.current_session_id = None
@@ -615,7 +627,8 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
         """Adds a tag to the current session with error handling."""
         try:
             name = self.tag_entry.get().strip()
-            if not name or not self.current_session_id: return
+            if not name or not self.current_session_id:
+                return
             pos = self.dialog_text.index(tk.INSERT)
             session = self.data_manager.get_session(self.current_session_id)
             if session:
@@ -646,6 +659,7 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
                     self.dialog_text.see(tag["pos"])
                     line = tag["pos"].split('.')[0]
                     self.dialog_text.tag_add("highlight", f"{line}.0", f"{line}.end")
-                except: pass
+                except Exception:
+                    pass
 
 

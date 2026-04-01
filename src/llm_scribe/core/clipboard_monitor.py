@@ -1,9 +1,11 @@
+import ctypes
+import queue
 import threading
 import time
-import queue
-import ctypes
 from datetime import datetime
+
 from llm_scribe.core.security import sanitize_input
+from llm_scribe.utils.logger import logger
 
 # Windows API for thread-safe clipboard access
 user32 = ctypes.windll.user32
@@ -34,7 +36,7 @@ class ClipboardMonitor:
         # Cache HWND if possible, though winfo_id is safer when called on demand
         try:
             self.root_hwnd = self.root.winfo_id()
-        except:
+        except Exception:
             self.root_hwnd = 0
 
     def _get_clipboard_text(self):
@@ -42,8 +44,6 @@ class ClipboardMonitor:
         Extremely robust Win32 clipboard text retrieval.
         Implements retry-fallback, explicit pointer handling, and guaranteed cleanup.
         """
-        from utils.logger import logger
-        
         # --- PHASE 1: OPEN CLIPBOARD ---
         opened = False
         try:
@@ -94,7 +94,6 @@ class ClipboardMonitor:
 
     def start(self):
         """Starts the clipboard monitoring and processing threads."""
-        from utils.logger import logger
         if self.is_active:
             logger.warning("ClipboardMonitor: Already running.")
             return
@@ -102,16 +101,19 @@ class ClipboardMonitor:
         self.is_active = True
         logger.info("ClipboardMonitor: Starting threads...")
         
-        self.monitor_thread = threading.Thread(target=self.poll_loop, daemon=True, name="ClipboardPoller")
+        self.monitor_thread = threading.Thread(
+            target=self.poll_loop, daemon=True, name="ClipboardPoller"
+        )
         self.monitor_thread.start()
         
-        self.processor_thread = threading.Thread(target=self.process_loop, daemon=True, name="ClipboardProcessor")
+        self.processor_thread = threading.Thread(
+            target=self.process_loop, daemon=True, name="ClipboardProcessor"
+        )
         self.processor_thread.start()
         logger.info("ClipboardMonitor: Service initialized.")
 
     def poll_loop(self):
         """Polls the clipboard and pushes new content to the queue."""
-        from utils.logger import logger
         logger.info("ClipboardMonitor: Poller loop started.")
         while self.is_active:
             try:
@@ -129,11 +131,8 @@ class ClipboardMonitor:
             time.sleep(1.0)
         logger.info("ClipboardMonitor: Poller loop stopped.")
 
-    # safe_poll removed as we're doing it directly in poll_loop for better responsiveness
-
     def process_loop(self):
         """Background thread: Sanitizes content and triggers UI callback."""
-        from utils.logger import logger
         while self.is_active:
             try:
                 # Wait for content with timeout to check is_active

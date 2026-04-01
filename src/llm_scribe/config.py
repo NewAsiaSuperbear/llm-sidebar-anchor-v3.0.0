@@ -1,6 +1,7 @@
 # Config constants for LLM Scribe Pro
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Application metadata
@@ -39,11 +40,10 @@ def get_app_data_dir() -> Path:
     env_path = os.getenv("LLM_SCRIBE_DATA_DIR")
     if env_path:
         path = Path(env_path).expanduser().resolve()
+    elif os.name == 'nt':
+        path = Path(os.environ.get('APPDATA', '~')).expanduser() / "LLMScribePro"
     else:
-        if os.name == 'nt':
-            path = Path(os.environ.get('APPDATA', '~')).expanduser() / "LLMScribePro"
-        else:
-            path = Path("~/.llm_scribe_pro").expanduser()
+        path = Path("~/.llm_scribe_pro").expanduser()
     
     path.mkdir(parents=True, exist_ok=True)
     return path

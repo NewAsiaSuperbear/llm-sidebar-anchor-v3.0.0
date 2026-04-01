@@ -1,16 +1,16 @@
 # Main entry point for LLM Scribe Pro
 import sys
-import os
 from pathlib import Path
+
+from llm_scribe.config import VERSION
+from llm_scribe.ui.main_window import MainWindow
+from llm_scribe.utils.logger import logger
 
 # Add src to sys.path if running directly
 src_path = str(Path(__file__).parent.parent)
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-from llm_scribe.ui.main_window import MainWindow
-from llm_scribe.utils.logger import logger
-from llm_scribe.config import VERSION
 
 def main():
     """Starts the LLM Scribe Pro application."""

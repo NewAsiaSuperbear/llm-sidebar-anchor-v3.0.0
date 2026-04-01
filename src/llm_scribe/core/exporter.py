@@ -1,12 +1,12 @@
 import os
-import json
 from datetime import datetime
-from jinja2 import Template
+
 import markdown
-from pygments import highlight
-from pygments.lexers import get_lexer_by_name
+from jinja2 import Template
 from pygments.formatters import HtmlFormatter
+
 from llm_scribe.utils.logger import logger
+
 
 class ExportEngine:
     """

@@ -1,6 +1,9 @@
-import customtkinter as ctk
 import tkinter as tk
+
+import customtkinter as ctk
+
 from llm_scribe.config import COLORS
+
 
 class MoveDialog(ctk.CTkToplevel):
     """

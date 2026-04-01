@@ -8,7 +8,8 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 # Mock environment variable for testing
 os.environ["LLM_SCRIBE_SALT"] = "test_salt_12345"
 
-from llm_scribe.core.security import generate_key, encrypt_data, decrypt_data
+from llm_scribe.core.security import decrypt_data, encrypt_data
+
 
 def test_encryption_cycle():
     """Verifies that content can be encrypted and decrypted with the current salt."""

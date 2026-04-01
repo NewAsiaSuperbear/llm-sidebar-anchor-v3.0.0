@@ -1,7 +1,9 @@
 import os
 import shutil
 from datetime import datetime
+
 from llm_scribe.config import DEFAULT_DATA_FILE
+
 
 def create_backup():
     """Creates a backup of the current data file."""

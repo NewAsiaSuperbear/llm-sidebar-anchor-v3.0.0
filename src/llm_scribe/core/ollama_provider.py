@@ -1,13 +1,18 @@
-import requests
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
+
+import requests
+
 from .ai_provider import AIProvider
+
+HTTP_OK = 200
+
 
 class OllamaProvider(AIProvider):
     """Ollama 本地模型提供商"""
     
     def __init__(self):
-        # 硬编码配置，不读取外部配置文件
+        # 硬编码配置, 不读取外部配置文件
         self.base_url = "http://localhost:11434"
         self.default_model = "qwen2.5:7b"
         self.timeout = 30  # 本地调用可以长一些
@@ -25,7 +30,7 @@ class OllamaProvider(AIProvider):
                 f"{self.base_url}/api/tags", 
                 timeout=2
             )
-            if response.status_code == 200:
+            if response.status_code == HTTP_OK:
                 self._available = True
                 return True
         except requests.exceptions.RequestException as e:
@@ -34,7 +39,7 @@ class OllamaProvider(AIProvider):
         self._available = False
         return False
     
-    def get_available_models(self) -> List[str]:
+    def get_available_models(self) -> list[str]:
         """获取已安装的模型列表"""
         if not self.is_available():
             return []
@@ -47,7 +52,7 @@ class OllamaProvider(AIProvider):
                 f"{self.base_url}/api/tags", 
                 timeout=5
             )
-            if response.status_code == 200:
+            if response.status_code == HTTP_OK:
                 data = response.json()
                 models = [model["name"] for model in data.get("models", [])]
                 self._models_cache = models
@@ -58,10 +63,10 @@ class OllamaProvider(AIProvider):
         return []
     
     async def chat(self, 
-                  messages: List[Dict[str, str]], 
+                  messages: list[dict[str, str]], 
                   model: Optional[str] = None, 
                   **kwargs) -> str:
-        """发送聊天消息（异步）"""
+        """发送聊天消息 (异步)"""
         if not self.is_available():
             raise ConnectionError("Ollama 服务未运行")
             
@@ -96,11 +101,34 @@ class OllamaProvider(AIProvider):
                           prompt: str, 
                           model: Optional[str] = None, 
                           **kwargs) -> str:
-        """生成文本（简化版，使用聊天接口）"""
-        messages = [{"role": "user", "content": prompt}]
-        return await self.chat(messages, model, **kwargs)
+        """生成文本 (简单提示词, 不带上下文)"""
+        if not self.is_available():
+            raise ConnectionError("Ollama 服务未运行")
+            
+        model_name = model or self.default_model
+        
+        payload = {
+            "model": model_name,
+            "prompt": prompt,
+            "stream": False,
+            "options": kwargs.get("options", {})
+        }
+        
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/generate",
+                json=payload,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("response", "")
+            
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Ollama 文本生成失败: {e}")
+            raise
     
-    def test_connection(self) -> Dict[str, Any]:
+    def test_connection(self) -> dict[str, Any]:
         """测试连接并返回详细信息"""
         result = {
             "available": False,
@@ -113,7 +141,7 @@ class OllamaProvider(AIProvider):
                 f"{self.base_url}/api/tags", 
                 timeout=5
             )
-            if response.status_code == 200:
+            if response.status_code == HTTP_OK:
                 data = response.json()
                 result["available"] = True
                 result["models"] = [m["name"] for m in data.get("models", [])]

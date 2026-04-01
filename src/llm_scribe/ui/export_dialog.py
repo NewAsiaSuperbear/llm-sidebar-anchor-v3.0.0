@@ -1,7 +1,10 @@
-import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog
+
+import customtkinter as ctk
+
 from llm_scribe.config import COLORS
+
 
 class ExportDialog(ctk.CTkToplevel):
     """
@@ -43,6 +46,7 @@ class ExportDialog(ctk.CTkToplevel):
             radio_frame, text="Markdown (.md)", 
             variable=self.format_var, value="md",
             fg_color=COLORS["accent"], border_color=COLORS["border"],
+            text_color=COLORS["text"], 
             command=lambda: self.preset_var.set("default")
         )
         md_radio.pack(pady=2, anchor="w")
@@ -51,6 +55,7 @@ class ExportDialog(ctk.CTkToplevel):
             radio_frame, text="HTML (.html)", 
             variable=self.format_var, value="html",
             fg_color=COLORS["accent"], border_color=COLORS["border"],
+            text_color=COLORS["text"],
             command=lambda: self.preset_var.set("default")
         )
         html_radio.pack(pady=2, anchor="w")
@@ -62,6 +67,7 @@ class ExportDialog(ctk.CTkToplevel):
             radio_frame, text="Obsidian (YAML + MD)", 
             variable=self.preset_var, value="obsidian",
             fg_color=COLORS["accent"], border_color=COLORS["border"],
+            text_color=COLORS["text"],
             command=lambda: self.format_var.set("md")
         )
         obsidian_radio.pack(pady=2, anchor="w")
@@ -70,6 +76,7 @@ class ExportDialog(ctk.CTkToplevel):
             radio_frame, text="Logseq (Block structure)", 
             variable=self.preset_var, value="logseq",
             fg_color=COLORS["accent"], border_color=COLORS["border"],
+            text_color=COLORS["text"],
             command=lambda: self.format_var.set("md")
         )
         logseq_radio.pack(pady=2, anchor="w")
@@ -93,7 +100,8 @@ class ExportDialog(ctk.CTkToplevel):
     def handle_confirm(self):
         fmt = self.format_var.get()
         preset = self.preset_var.get()
-        if preset == "default": preset = None
+        if preset == "default":
+            preset = None
         
         if self.is_folder:
             path = filedialog.askdirectory(title="选择导出目录")
@@ -102,7 +110,10 @@ class ExportDialog(ctk.CTkToplevel):
             path = filedialog.asksaveasfilename(
                 title="保存导出文件",
                 defaultextension=ext,
-                filetypes=[(f"{fmt.upper()} files", f"*{ext}"), ("All files", "*.*")],
+                filetypes=[
+                    (f"{fmt.upper()} files", f"*{ext}"), 
+                    ("All files", "*.*")
+                ],
                 initialfile=f"{self.item_name}{ext}"
             )
             

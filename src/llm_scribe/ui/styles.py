@@ -2,6 +2,7 @@
 import customtkinter as ctk
 from config import COLORS
 
+
 class AppStyles:
     @staticmethod
     def setup_theme():
