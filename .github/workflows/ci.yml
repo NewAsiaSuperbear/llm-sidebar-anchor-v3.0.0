@@ -9,9 +9,6 @@ on:
 jobs:
   test:
     runs-on: windows-latest
-    defaults:
-      run:
-        working-directory: ./project002
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
@@ -21,10 +18,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        # 尝试在当前目录或 project002 目录下安装
+        if (Test-Path "project002") { cd project002 }
         pip install .[dev]
     - name: Run security tests
       run: |
+        if (Test-Path "project002") { cd project002 }
         python tests/test_security.py
     - name: Lint with Ruff
       run: |
+        if (Test-Path "project002") { cd project002 }
         ruff check .
