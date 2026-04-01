@@ -2,50 +2,30 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
   test:
     runs-on: windows-latest
-    
     steps:
     - uses: actions/checkout@v4
-    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    
-    - name: Upgrade pip
-      run: python -m pip install --upgrade pip
-    
-    - name: Install dependencies
+    - name: Run Tests and Lint
+      shell: pwsh
       run: |
-        if (Test-Path "project002") {
-          cd project002
+        $projectDir = "project002"
+        if (!(Test-Path $projectDir)) {
+            $projectDir = "."
         }
+        Write-Host "Using project directory: $projectDir"
+        python -m pip install --upgrade pip
+        Push-Location $projectDir
         pip install .[dev]
-    
-    - name: Run security tests
-      run: |
-        if (Test-Path "project002") {
-          cd project002
-        }
-        python -c "
-        from llm_scribe.core.security import generate_key, encrypt_data, decrypt_data
-        key = generate_key()
-        data = b'test data'
-        encrypted = encrypt_data(data, key)
-        decrypted = decrypt_data(encrypted, key)
-        assert data == decrypted, 'Encryption/Decryption failed'
-        print('✅ Security smoke test passed')
-        "
-    
-    - name: Lint with ruff
-      run: |
-        if (Test-Path "project002") {
-          cd project002
-        }
+        python -c "from llm_scribe.core.security import encrypt_data,decrypt_data; t='ci-smoke-test'; e=encrypt_data(t); assert decrypt_data(e)==t; print('security test passed')"
         ruff check .
+        Pop-Location
