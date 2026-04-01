@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: ./project002
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
@@ -21,7 +24,7 @@ jobs:
         pip install .[dev]
     - name: Run security tests
       run: |
-        python project002/tests/test_security.py
+        python tests/test_security.py
     - name: Lint with Ruff
       run: |
         ruff check .
