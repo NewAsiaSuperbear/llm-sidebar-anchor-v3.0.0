@@ -24,7 +24,7 @@
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/llm-scribe-pro.git
-cd llm-scribe-pro/project002
+cd llm-scribe-pro
 
 # Create and activate virtual environment
 python -m venv .venv

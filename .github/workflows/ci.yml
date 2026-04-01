@@ -18,14 +18,7 @@ jobs:
     - name: Run Tests and Lint
       shell: pwsh
       run: |
-        $projectDir = "project002"
-        if (!(Test-Path $projectDir)) {
-            $projectDir = "."
-        }
-        Write-Host "Using project directory: $projectDir"
         python -m pip install --upgrade pip
-        Push-Location $projectDir
         pip install .[dev]
         python -c "from llm_scribe.core.security import encrypt_data,decrypt_data; t='ci-smoke-test'; e=encrypt_data(t); assert decrypt_data(e)==t; print('security test passed')"
         ruff check .
-        Pop-Location
