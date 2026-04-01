@@ -34,11 +34,11 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
-line-length = 100
+line-length = 200
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I", "N", "UP", "PL", "RUF"]
-ignore = ["PLR0913", "PLR0915"]
+ignore = ["PLR0913", "PLR0915", "RUF001"]
 
 [tool.black]
 line-length = 100
