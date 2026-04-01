@@ -4,6 +4,7 @@ from datetime import datetime
 
 from llm_scribe.config import DEFAULT_DATA_FILE
 
+MAX_BACKUPS = 10
 
 def create_backup():
     """Creates a backup of the current data file."""
@@ -18,10 +19,10 @@ def create_backup():
     
     try:
         shutil.copy2(DEFAULT_DATA_FILE, backup_path)
-        # Keep only last 10 backups
+        # Keep only last MAX_BACKUPS backups
         backups = sorted([os.path.join(backup_dir, f) for f in os.listdir(backup_dir)])
-        if len(backups) > 10:
-            for b in backups[:-10]:
+        if len(backups) > MAX_BACKUPS:
+            for b in backups[:-MAX_BACKUPS]:
                 os.remove(b)
         return backup_path
     except Exception as e:

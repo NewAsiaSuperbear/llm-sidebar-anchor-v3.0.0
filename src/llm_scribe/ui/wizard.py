@@ -3,6 +3,9 @@ import customtkinter as ctk
 from llm_scribe.config import COLORS
 from llm_scribe.ui.styles import AppStyles
 
+STEP_SCRIBE_MODE = 2
+STEP_STRUCTURE = 3
+
 
 class FirstRunWizard(ctk.CTkToplevel):
     def __init__(self, master, on_complete_callback, **kwargs):
@@ -60,7 +63,7 @@ class FirstRunWizard(ctk.CTkToplevel):
             )
             self.desc_label.configure(text=desc)
             self.prev_btn.configure(state="disabled")
-        elif self.step == 2:
+        elif self.step == STEP_SCRIBE_MODE:
             self.title_label.configure(text="速记模式 (Scribe Mode)")
             desc = (
                 "点击顶部的 '🚀 速记 (Scribe)' 按钮即可开启。\n\n"
@@ -68,7 +71,7 @@ class FirstRunWizard(ctk.CTkToplevel):
             )
             self.desc_label.configure(text=desc)
             self.prev_btn.configure(state="normal")
-        elif self.step == 3:
+        elif self.step == STEP_STRUCTURE:
             self.title_label.configure(text="会话与文件夹 (Structure)")
             desc = (
                 "📄 '会话' 就像一本笔记本, 记录单次对话。\n"

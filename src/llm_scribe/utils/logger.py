@@ -5,6 +5,7 @@ from functools import wraps
 
 from llm_scribe.config import LOG_FILE
 
+PERF_LOG_THRESHOLD_MS = 10
 
 def setup_logger():
     """Configures the logging system for the application."""
@@ -33,7 +34,7 @@ def perf_log(func):
         result = func(*args, **kwargs)
         end_time = time.perf_counter()
         duration = (end_time - start_time) * 1000 # Convert to ms
-        if duration > 10: # Only log if it takes more than 10ms
+        if duration > PERF_LOG_THRESHOLD_MS: # Only log if it takes more than PERF_LOG_THRESHOLD_MS ms
             logger.info(f"PERF: {func.__name__} took {duration:.2f}ms")
         return result
     return wrapper
