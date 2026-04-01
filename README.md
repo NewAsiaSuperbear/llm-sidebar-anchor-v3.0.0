@@ -1,4 +1,4 @@
-# LLM Scribe Pro v2.1.0 🚀
+# LLM Scribe Pro v3.0.0 🚀
 
 **LLM Scribe Pro** is a professional-grade, automated recording and management tool for AI conversations. It silently monitors your system clipboard, captures AI dialogues, and organizes them into a secure, searchable local knowledge base.
 
