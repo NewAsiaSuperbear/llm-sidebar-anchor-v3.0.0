@@ -4,29 +4,37 @@ import subprocess
 import sys
 from pathlib import Path
 
+try:
+    import tkinter as tk
+    from tkinter import messagebox
+except Exception:
+    tk = None
+    messagebox = None
+
 
 def _notify(title: str, message: str, *, is_error: bool = False) -> None:
     try:
-        import tkinter as tk
-        from tkinter import messagebox
-
-        root = tk.Tk()
-        root.withdraw()
-        try:
-            root.attributes("-topmost", True)
-        except Exception:
-            pass
-        if is_error:
-            messagebox.showerror(title, message)
-        else:
-            messagebox.showinfo(title, message)
-        root.destroy()
+        if tk is not None and messagebox is not None:
+            root = tk.Tk()
+            root.withdraw()
+            try:
+                root.attributes("-topmost", True)
+            except Exception:
+                pass
+            if is_error:
+                messagebox.showerror(title, message)
+            else:
+                messagebox.showinfo(title, message)
+            root.destroy()
+            return
     except Exception:
-        stream = sys.stderr if is_error else sys.stdout
-        try:
-            stream.write(f"{title}: {message}\n")
-        except Exception:
-            pass
+        pass
+
+    stream = sys.stderr if is_error else sys.stdout
+    try:
+        stream.write(f"{title}: {message}\n")
+    except Exception:
+        pass
 
 
 def _venv_python(venv_dir: Path) -> Path:
