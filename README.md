@@ -45,6 +45,22 @@ cp .env.example .env
 
 ## 🚀 Usage
 
+### Quick Start (Double-click `app.py`)
+After cloning, you can launch the app by double-clicking `app.py` (Windows), or running it from a terminal.
+克隆仓库后，可直接双击 `app.py`（Windows），或在终端运行：
+```bash
+python app.py
+```
+This launcher will automatically create/reuse a virtual environment and install dependencies on first run.
+启动器会在首次运行时自动创建/复用虚拟环境并安装依赖。
+
+**Virtual environment location**
+- Default / 默认：`<repo>/.venv`（与 `app.py` 同级）
+- Fallback / 备用（当仓库目录不可写时）：
+  - Windows: `%LOCALAPPDATA%\LLMScribePro\venvs\...`
+  - Other: `$XDG_STATE_HOME/llm_scribe_pro/venvs/...` (or `~/.local/state/...`)
+- Override（可选）：设置环境变量 `LLM_SCRIBE_VENV_DIR` 来指定自定义虚拟环境目录。
+
 ### Run the Application
 ```bash
 python src/llm_scribe/main.py
