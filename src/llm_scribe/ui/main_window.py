@@ -1,5 +1,6 @@
 import ctypes
 import os
+import sys
 import tkinter as tk
 from tkinter import messagebox, scrolledtext, simpledialog, ttk
 
@@ -19,15 +20,18 @@ from llm_scribe.utils.backup import create_backup
 from llm_scribe.utils.logger import logger, perf_log
 
 # Windows API Constants
-GWL_EXSTYLE = -20
-WS_EX_LAYERED = 0x00080000
-WS_EX_TRANSPARENT = 0x00000020
-LWA_ALPHA = 0x00000002
-SWP_NOMOVE = 0x0002
-SWP_NOSIZE = 0x0001
-SWP_NOZORDER = 0x0004
-SWP_FRAMECHANGED = 0x0020
-user32 = ctypes.windll.user32
+if sys.platform == 'win32':
+    GWL_EXSTYLE = -20
+    WS_EX_LAYERED = 0x00080000
+    WS_EX_TRANSPARENT = 0x00000020
+    LWA_ALPHA = 0x00000002
+    SWP_NOMOVE = 0x0002
+    SWP_NOSIZE = 0x0001
+    SWP_NOZORDER = 0x0004
+    SWP_FRAMECHANGED = 0x0020
+    user32 = ctypes.windll.user32
+else:
+    user32 = None
 
 class MainWindow(ctk.CTk):
     def __init__(self):
@@ -327,6 +331,11 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
 
     def apply_click_through(self, enable):
         """Windows-only: Safely set window styles to avoid GUI hang."""
+        if not user32:
+            logger.warning("Ghost Mode is only supported on Windows.")
+            Toast(self, "仅支持Windows (Windows only)", fg_color=COLORS["danger"]).show()
+            return
+            
         try:
             hwnd = self.winfo_id()
             if not hwnd:

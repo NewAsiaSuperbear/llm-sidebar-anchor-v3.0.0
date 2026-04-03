@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -19,11 +20,11 @@ def build():
             shutil.rmtree(project_root / folder)
             
     # 2. Run PyInstaller
-    print("Step 2: Building EXE...")
+    print("Step 2: Building App...")
     try:
         # Use the spec file in the root
         subprocess.check_call(["pyinstaller", "--noconfirm", "LLMScribePro.spec"])
-        print(f"\nSUCCESS: LLMScribePro.exe has been generated in {project_root / 'dist'}")
+        print(f"\nSUCCESS: LLMScribePro has been generated in {project_root / 'dist'}")
     except Exception as e:
         print(f"\nFAILED: Error during packaging: {e}")
 

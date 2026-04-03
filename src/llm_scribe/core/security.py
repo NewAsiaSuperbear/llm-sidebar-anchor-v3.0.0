@@ -1,6 +1,7 @@
 import base64
 import os
 import subprocess
+import sys
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -19,9 +20,22 @@ def get_machine_id():
         return _cache["machine_id"]
     
     try:
-        # Windows-specific hardware UUID
-        cmd = 'wmic csproduct get uuid'
-        uuid = subprocess.check_output(cmd, shell=True).decode().split('\n')[1].strip()
+        if sys.platform == 'win32':
+            # Use PowerShell instead of wmic which might not be in PATH
+            cmd = 'powershell.exe -Command "(Get-CimInstance -Class Win32_ComputerSystemProduct).UUID"'
+            uuid = subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL).decode().strip()
+        elif sys.platform == 'darwin':
+            cmd = "ioreg -rd1 -c IOPlatformExpertDevice | grep IOPlatformUUID"
+            output = subprocess.check_output(cmd, shell=True).decode()
+            uuid = output.split('"')[3]
+        else:
+            # Linux fallback (requires root usually, so default to fallback)
+            try:
+                with open('/etc/machine-id') as f:
+                    uuid = f.read().strip()
+            except Exception:
+                uuid = "default_hardware_fallback"
+                
         _cache["machine_id"] = uuid.encode()
         return _cache["machine_id"]
     except Exception:
