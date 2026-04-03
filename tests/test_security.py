@@ -1,6 +1,6 @@
+import importlib
 import os
 import sys
-import importlib
 import tempfile
 from pathlib import Path
 
@@ -10,6 +10,7 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 # Mock environment variable for testing
 os.environ["LLM_SCRIBE_SALT"] = "test_salt_12345"
 
+from llm_scribe.core import security
 from llm_scribe.core.security import decrypt_data, encrypt_data
 
 
@@ -31,8 +32,6 @@ def test_machine_id_available():
     with tempfile.TemporaryDirectory() as tmp:
         os.environ["LLM_SCRIBE_DATA_DIR"] = tmp
         os.environ["LLM_SCRIBE_SALT"] = "test_salt_12345"
-
-        import llm_scribe.core.security as security
 
         importlib.reload(security)
 

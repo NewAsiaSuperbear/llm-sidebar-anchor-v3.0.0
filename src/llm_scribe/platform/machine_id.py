@@ -6,6 +6,8 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
+from llm_scribe.config import get_app_data_dir
+
 
 def get_machine_id_bytes() -> bytes:
     value = _get_platform_machine_id()
@@ -97,8 +99,6 @@ def _get_or_create_persisted_id() -> str:
 
 
 def _persisted_id_path() -> Path:
-    from llm_scribe.config import get_app_data_dir
-
     base = os.getenv("LLM_SCRIBE_DATA_DIR")
     if base:
         return Path(base).expanduser().resolve() / "machine_id"

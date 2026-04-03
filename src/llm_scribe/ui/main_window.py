@@ -18,6 +18,7 @@ from llm_scribe.ui.wizard import FirstRunWizard
 from llm_scribe.utils.backup import create_backup
 from llm_scribe.utils.logger import logger, perf_log
 
+
 class MainWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -288,8 +289,10 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
 [CN] 使用滑动条调整窗口透明度。勾选 '📌 置顶' 可使窗口始终保持在其他应用程序上方。
 
 --- 6. Security & Data / 安全与数据 ---
-[EN] All data is encrypted and stored locally in your system application data directory (Windows: AppData, macOS: Application Support, Linux: XDG data dir). No data is sent to external servers. Use '💾 Backup' regularly to save snapshots of your data.
-[CN] 所有数据均经过加密并存储在本地系统应用数据目录中（Windows: AppData，macOS: Application Support，Linux: XDG 数据目录）。数据不会上传到外部服务器。请定期使用 '💾 备份' 功能保存数据快照。
+[EN] All data is encrypted and stored locally in your system application data directory (Windows: AppData, macOS: Application Support, Linux: XDG data dir).
+No data is sent to external servers. Use '💾 Backup' regularly to save snapshots of your data.
+[CN] 所有数据均经过加密并存储在本地系统应用数据目录中（Windows: AppData，macOS: Application Support，Linux: XDG 数据目录）。
+数据不会上传到外部服务器。请定期使用 '💾 备份' 功能保存数据快照。
         """
         guide_text.insert(tk.END, text.strip())
         guide_text.configure(state=tk.DISABLED) # Read-only

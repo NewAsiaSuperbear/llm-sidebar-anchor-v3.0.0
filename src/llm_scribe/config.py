@@ -7,6 +7,11 @@ try:
 except Exception:
     load_dotenv = None
 
+try:
+    from platformdirs import user_data_dir
+except Exception:
+    user_data_dir = None
+
 # Application metadata
 APP_NAME = "LLM Scribe Pro"
 VERSION = "2.1.0"
@@ -41,11 +46,6 @@ COLORS = {
 # Path management
 def get_app_data_dir() -> Path:
     """Determine the application data directory."""
-    try:
-        from platformdirs import user_data_dir
-    except Exception:
-        user_data_dir = None
-
     # Priority: Env Var > OS Standard Location > Fallback
     env_path = os.getenv("LLM_SCRIBE_DATA_DIR")
     if env_path:

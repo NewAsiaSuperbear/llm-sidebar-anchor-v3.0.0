@@ -1,3 +1,4 @@
+import ctypes
 import sys
 import time
 from typing import Optional
@@ -24,8 +25,6 @@ def _get_clipboard_text_tk(root) -> Optional[str]:
 
 
 def _get_clipboard_text_win32(hwnd: int) -> Optional[str]:
-    import ctypes
-
     user32 = ctypes.windll.user32
     kernel32 = ctypes.windll.kernel32
     cf_unicode_text = 13

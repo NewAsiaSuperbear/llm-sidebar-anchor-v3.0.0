@@ -7,6 +7,7 @@ from llm_scribe.core.security import sanitize_input
 from llm_scribe.platform.clipboard import get_clipboard_text
 from llm_scribe.utils.logger import logger
 
+
 class ClipboardMonitor:
     def __init__(self, root, on_capture_callback):
         self.root = root

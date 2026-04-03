@@ -1,3 +1,4 @@
+import ctypes
 import sys
 
 
@@ -8,8 +9,6 @@ def supports_click_through() -> bool:
 def set_click_through(window, enable: bool) -> bool:
     if sys.platform != "win32":
         return False
-
-    import ctypes
 
     user32 = ctypes.windll.user32
 
