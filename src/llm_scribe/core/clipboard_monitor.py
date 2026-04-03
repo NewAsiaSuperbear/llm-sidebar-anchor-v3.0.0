@@ -1,28 +1,11 @@
-import ctypes
 import queue
 import threading
 import time
 from datetime import datetime
 
 from llm_scribe.core.security import sanitize_input
+from llm_scribe.platform.clipboard import get_clipboard_text
 from llm_scribe.utils.logger import logger
-
-# Windows API for thread-safe clipboard access
-user32 = ctypes.windll.user32
-kernel32 = ctypes.windll.kernel32
-CF_UNICODETEXT = 13
-
-# Set explicit argtypes and restypes for 64-bit safety (prevents pointer truncation)
-user32.OpenClipboard.argtypes = [ctypes.c_void_p]
-user32.OpenClipboard.restype = ctypes.c_bool
-user32.GetClipboardData.argtypes = [ctypes.c_uint]
-user32.GetClipboardData.restype = ctypes.c_void_p
-user32.CloseClipboard.restype = ctypes.c_bool
-
-kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
-kernel32.GlobalLock.restype = ctypes.c_void_p
-kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
-kernel32.GlobalUnlock.restype = ctypes.c_bool
 
 class ClipboardMonitor:
     def __init__(self, root, on_capture_callback):
@@ -40,57 +23,7 @@ class ClipboardMonitor:
             self.root_hwnd = 0
 
     def _get_clipboard_text(self):
-        """
-        Extremely robust Win32 clipboard text retrieval.
-        Implements retry-fallback, explicit pointer handling, and guaranteed cleanup.
-        """
-        # --- PHASE 1: OPEN CLIPBOARD ---
-        opened = False
-        try:
-            # First attempt: Use the specific window handle
-            if self.root_hwnd and user32.OpenClipboard(self.root_hwnd):
-                opened = True
-                logger.debug("ClipboardMonitor: Opened clipboard with root_hwnd.")
-            else:
-                # Fallback: Wait 10ms and try with 0 (current task)
-                time.sleep(0.01)
-                if user32.OpenClipboard(0):
-                    opened = True
-                    logger.debug("ClipboardMonitor: Opened clipboard with fallback (0).")
-                else:
-                    logger.warning("ClipboardMonitor: Failed to open clipboard (Busy or Locked).")
-                    return None
-            
-            # --- PHASE 2: GET DATA HANDLE ---
-            h_clipboard_data = user32.GetClipboardData(CF_UNICODETEXT)
-            if not h_clipboard_data:
-                # Not an error: clipboard might contain an image or file instead of text
-                return None
-            
-            # --- PHASE 3: LOCK AND COPY MEMORY ---
-            p_data = kernel32.GlobalLock(h_clipboard_data)
-            if not p_data:
-                logger.error("ClipboardMonitor: GlobalLock failed.")
-                return None
-                
-            try:
-                # CRITICAL: Use wstring_at to safely read the memory into a Python string.
-                # This creates a copy and avoids direct pointer access violations.
-                content = ctypes.wstring_at(p_data)
-                return content if content else None
-            finally:
-                # Ensure GlobalLock is always released
-                kernel32.GlobalUnlock(h_clipboard_data)
-                
-        except Exception as e:
-            # Catch all low-level memory access or API errors
-            logger.error(f"ClipboardMonitor: CRITICAL ACCESS VIOLATION or Error: {e}")
-            return None
-        finally:
-            # --- PHASE 4: GUARANTEED CLEANUP ---
-            if opened:
-                user32.CloseClipboard()
-                logger.debug("ClipboardMonitor: Clipboard closed.")
+        return get_clipboard_text(self.root, self.root_hwnd)
 
     def start(self):
         """Starts the clipboard monitoring and processing threads."""

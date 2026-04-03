@@ -8,17 +8,26 @@ on:
 
 jobs:
   test:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+    - name: Install system deps (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk
     - name: Run Tests and Lint
-      shell: pwsh
       run: |
         python -m pip install --upgrade pip
         pip install .[dev]
+        python -m pytest -q
         python -c "from llm_scribe.core.security import encrypt_data,decrypt_data; t='ci-smoke-test'; e=encrypt_data(t); assert decrypt_data(e)==t; print('security test passed')"
         ruff check .

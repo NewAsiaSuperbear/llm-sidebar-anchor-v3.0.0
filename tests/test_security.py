@@ -1,5 +1,7 @@
 import os
 import sys
+import importlib
+import tempfile
 from pathlib import Path
 
 # Add src to sys.path
@@ -24,5 +26,20 @@ def test_encryption_cycle():
     assert decrypted == original_text
     print("Encryption cycle test PASSED.")
 
+
+def test_machine_id_available():
+    with tempfile.TemporaryDirectory() as tmp:
+        os.environ["LLM_SCRIBE_DATA_DIR"] = tmp
+        os.environ["LLM_SCRIBE_SALT"] = "test_salt_12345"
+
+        import llm_scribe.core.security as security
+
+        importlib.reload(security)
+
+        mid = security.get_machine_id()
+        assert isinstance(mid, (bytes, bytearray))
+        assert len(mid) > 0
+
 if __name__ == "__main__":
     test_encryption_cycle()
+    test_machine_id_available()

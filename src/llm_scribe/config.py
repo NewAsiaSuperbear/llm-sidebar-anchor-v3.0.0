@@ -2,11 +2,15 @@
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except Exception:
+    load_dotenv = None
 
 # Application metadata
 APP_NAME = "LLM Scribe Pro"
 VERSION = "2.1.0"
+APP_DIR_NAME = "LLMScribePro"
 
 # Determine base paths
 # When running as a package, __file__ is in src/llm_scribe/config.py
@@ -16,7 +20,8 @@ ENV_FILE = PROJECT_ROOT / ".env"
 
 # Load environment variables if .env exists
 if ENV_FILE.exists():
-    load_dotenv(ENV_FILE)
+    if load_dotenv is not None:
+        load_dotenv(ENV_FILE)
 
 # Colors (Modern Dark Theme)
 COLORS = {
@@ -36,12 +41,19 @@ COLORS = {
 # Path management
 def get_app_data_dir() -> Path:
     """Determine the application data directory."""
-    # Priority: Env Var > APPDATA (Win) > Home Folder
+    try:
+        from platformdirs import user_data_dir
+    except Exception:
+        user_data_dir = None
+
+    # Priority: Env Var > OS Standard Location > Fallback
     env_path = os.getenv("LLM_SCRIBE_DATA_DIR")
     if env_path:
         path = Path(env_path).expanduser().resolve()
-    elif os.name == 'nt':
-        path = Path(os.environ.get('APPDATA', '~')).expanduser() / "LLMScribePro"
+    elif user_data_dir is not None:
+        path = Path(user_data_dir(APP_DIR_NAME, appauthor=False, roaming=True))
+    elif os.name == "nt":
+        path = Path(os.environ.get("APPDATA", "~")).expanduser() / APP_DIR_NAME
     else:
         path = Path("~/.llm_scribe_pro").expanduser()
     

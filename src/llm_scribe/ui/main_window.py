@@ -1,4 +1,3 @@
-import ctypes
 import os
 import tkinter as tk
 from tkinter import messagebox, scrolledtext, simpledialog, ttk
@@ -10,6 +9,7 @@ from llm_scribe.core.clipboard_monitor import ClipboardMonitor
 from llm_scribe.core.data_manager import DataManager
 from llm_scribe.core.exporter import Exporter
 from llm_scribe.core.security import sanitize_input
+from llm_scribe.platform.window_features import set_click_through, supports_click_through
 from llm_scribe.ui.components import StatusIndicator, Toast
 from llm_scribe.ui.export_dialog import ExportDialog
 from llm_scribe.ui.move_dialog import MoveDialog
@@ -17,17 +17,6 @@ from llm_scribe.ui.styles import AppStyles
 from llm_scribe.ui.wizard import FirstRunWizard
 from llm_scribe.utils.backup import create_backup
 from llm_scribe.utils.logger import logger, perf_log
-
-# Windows API Constants
-GWL_EXSTYLE = -20
-WS_EX_LAYERED = 0x00080000
-WS_EX_TRANSPARENT = 0x00000020
-LWA_ALPHA = 0x00000002
-SWP_NOMOVE = 0x0002
-SWP_NOSIZE = 0x0001
-SWP_NOZORDER = 0x0004
-SWP_FRAMECHANGED = 0x0020
-user32 = ctypes.windll.user32
 
 class MainWindow(ctk.CTk):
     def __init__(self):
@@ -299,8 +288,8 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
 [CN] 使用滑动条调整窗口透明度。勾选 '📌 置顶' 可使窗口始终保持在其他应用程序上方。
 
 --- 6. Security & Data / 安全与数据 ---
-[EN] All data is encrypted and stored locally in your %APPDATA% folder. No data is sent to external servers. Use '💾 Backup' regularly to save snapshots of your data.
-[CN] 所有数据均经过加密并存储在本地 %APPDATA% 文件夹中。数据不会上传到外部服务器。请定期使用 '💾 备份' 功能保存数据快照。
+[EN] All data is encrypted and stored locally in your system application data directory (Windows: AppData, macOS: Application Support, Linux: XDG data dir). No data is sent to external servers. Use '💾 Backup' regularly to save snapshots of your data.
+[CN] 所有数据均经过加密并存储在本地系统应用数据目录中（Windows: AppData，macOS: Application Support，Linux: XDG 数据目录）。数据不会上传到外部服务器。请定期使用 '💾 备份' 功能保存数据快照。
         """
         guide_text.insert(tk.END, text.strip())
         guide_text.configure(state=tk.DISABLED) # Read-only
@@ -326,36 +315,23 @@ LLM Scribe Pro v2.x - Usage Guide / 使用指南
         self._ghost_update_job = None
 
     def apply_click_through(self, enable):
-        """Windows-only: Safely set window styles to avoid GUI hang."""
         try:
-            hwnd = self.winfo_id()
-            if not hwnd:
-                return
-            
-            # Get current extended styles
-            styles = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-            
-            if enable:
-                # Add TRANSPARENT bit. LAYERED is likely already set by attributes("-alpha")
-                new_styles = styles | WS_EX_TRANSPARENT | WS_EX_LAYERED
-            else:
-                # Remove TRANSPARENT bit
-                new_styles = styles & ~WS_EX_TRANSPARENT
-            
-            if styles != new_styles:
-                user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new_styles)
-                # CRITICAL: SetWindowPos with SWP_FRAMECHANGED is required for styles to take effect
-                user32.SetWindowPos(
-                    hwnd, 0, 0, 0, 0, 0, 
-                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED
-                )
-                
-                status = "ON" if enable else "OFF"
-                logger.info(f"Ghost Mode (Click-Through) turned {status}")
+            if not supports_click_through():
                 if enable:
-                    Toast(self, "穿透模式已开启 (Ghost Mode ON)", duration=1500).show()
-                else:
-                    Toast(self, "穿透模式已关闭 (Ghost Mode OFF)", duration=1500).show()
+                    Toast(self, "当前系统不支持穿透模式", fg_color=COLORS["danger"], duration=2000).show()
+                return
+
+            ok = set_click_through(self, enable)
+            if not ok:
+                Toast(self, "穿透模式设置失败", fg_color=COLORS["danger"], duration=2000).show()
+                return
+
+            status = "ON" if enable else "OFF"
+            logger.info(f"Ghost Mode (Click-Through) turned {status}")
+            if enable:
+                Toast(self, "穿透模式已开启 (Ghost Mode ON)", duration=1500).show()
+            else:
+                Toast(self, "穿透模式已关闭 (Ghost Mode OFF)", duration=1500).show()
         except Exception as e:
             logger.error(f"Click-through failed: {e}")
 

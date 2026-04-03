@@ -1,12 +1,12 @@
 import base64
 import os
-import subprocess
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from llm_scribe.config import ENCRYPTION_SALT
+from llm_scribe.platform.machine_id import get_machine_id_bytes
 
 _cache = {
     "machine_id": None,
@@ -17,17 +17,12 @@ def get_machine_id():
     """Generates a semi-unique ID for the machine with caching."""
     if _cache["machine_id"]:
         return _cache["machine_id"]
-    
+
     try:
-        # Windows-specific hardware UUID
-        cmd = 'wmic csproduct get uuid'
-        uuid = subprocess.check_output(cmd, shell=True).decode().split('\n')[1].strip()
-        _cache["machine_id"] = uuid.encode()
-        return _cache["machine_id"]
+        _cache["machine_id"] = get_machine_id_bytes()
     except Exception:
-        # Fallback for non-windows or failed command
         _cache["machine_id"] = b"default_hardware_fallback"
-        return _cache["machine_id"]
+    return _cache["machine_id"]
 
 def generate_key():
     """Derives a stable encryption key from machine ID and external salt."""

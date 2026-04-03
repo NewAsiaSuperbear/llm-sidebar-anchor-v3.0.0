@@ -46,8 +46,8 @@ cp .env.example .env
 ## 🚀 Usage
 
 ### Quick Start (Double-click `app.py`)
-After cloning, you can launch the app by double-clicking `app.py` (Windows), or running it from a terminal.
-克隆仓库后，可直接双击 `app.py`（Windows），或在终端运行：
+After cloning, you can launch the app by running it from a terminal (Windows/macOS/Linux).
+克隆仓库后，可在终端运行（Windows/macOS/Linux）：
 ```bash
 python app.py
 ```
@@ -69,9 +69,9 @@ python src/llm_scribe/main.py
 ### Build Standalone EXE (Windows)
 ```bash
 pip install .[dev]
-python scripts/build_exe.py
+python scripts/build_dist.py
 ```
-The generated EXE will be in the `dist/` folder.
+The generated app bundle will be in the `dist/` folder (Windows: `.exe`, macOS: `.app`, Linux: executable).
 
 ---
 
@@ -85,7 +85,7 @@ The generated EXE will be in the `dist/` folder.
 ---
 
 ## 🔒 Security Notice
-- All session data is stored in `%APPDATA%\LLMScribePro` (Windows) or `~/.llm_scribe_pro` (Other).
+- All session data is stored in your system application data directory (Windows: AppData, macOS: Application Support, Linux: XDG data dir). You can override it via `LLM_SCRIBE_DATA_DIR`.
 - Encryption is performed locally using keys derived from your `LLM_SCRIBE_SALT` and machine UUID. **Keep your .env file safe and do not share it.**
 
 ---
