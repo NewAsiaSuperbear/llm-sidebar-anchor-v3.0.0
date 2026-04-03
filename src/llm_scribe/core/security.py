@@ -1,5 +1,6 @@
 import base64
 import os
+import sys
 import subprocess
 
 from cryptography.fernet import Fernet
@@ -19,9 +20,21 @@ def get_machine_id():
         return _cache["machine_id"]
     
     try:
-        # Windows-specific hardware UUID
-        cmd = 'wmic csproduct get uuid'
-        uuid = subprocess.check_output(cmd, shell=True).decode().split('\n')[1].strip()
+        if sys.platform == 'win32':
+            cmd = 'wmic csproduct get uuid'
+            uuid = subprocess.check_output(cmd, shell=True).decode().split('\n')[1].strip()
+        elif sys.platform == 'darwin':
+            cmd = "ioreg -rd1 -c IOPlatformExpertDevice | grep IOPlatformUUID"
+            output = subprocess.check_output(cmd, shell=True).decode()
+            uuid = output.split('"')[3]
+        else:
+            # Linux fallback (requires root usually, so default to fallback)
+            try:
+                with open('/etc/machine-id', 'r') as f:
+                    uuid = f.read().strip()
+            except Exception:
+                uuid = "default_hardware_fallback"
+                
         _cache["machine_id"] = uuid.encode()
         return _cache["machine_id"]
     except Exception:
