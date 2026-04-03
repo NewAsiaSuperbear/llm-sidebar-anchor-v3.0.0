@@ -1,5 +1,7 @@
 # Custom Styles for LLM Scribe Pro
 import customtkinter as ctk
+import tkinter as tk
+
 from llm_scribe.config import COLORS
 
 

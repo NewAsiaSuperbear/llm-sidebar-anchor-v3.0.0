@@ -1,7 +1,7 @@
 import ctypes
 import queue
-import sys
 import subprocess
+import sys
 import threading
 import time
 from datetime import datetime
@@ -48,14 +48,14 @@ class ClipboardMonitor:
         """
         if sys.platform == 'darwin':
             try:
-                result = subprocess.run(['pbpaste'], capture_output=True, text=True, timeout=1)
+                result = subprocess.run(['pbpaste'], capture_output=True, text=True, timeout=1, check=False)
                 return result.stdout if result.stdout else None
             except Exception as e:
                 logger.error(f"ClipboardMonitor macOS Error: {e}")
                 return None
         elif sys.platform == 'linux':
             try:
-                result = subprocess.run(['xclip', '-selection', 'clipboard', '-o'], capture_output=True, text=True, timeout=1)
+                result = subprocess.run(['xclip', '-selection', 'clipboard', '-o'], capture_output=True, text=True, timeout=1, check=False)
                 return result.stdout if result.stdout else None
             except Exception as e:
                 logger.error(f"ClipboardMonitor Linux Error: {e}")

@@ -1,7 +1,7 @@
 import os
-import sys
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -24,7 +24,6 @@ def build():
     try:
         # Use the spec file in the root
         subprocess.check_call(["pyinstaller", "--noconfirm", "LLMScribePro.spec"])
-        ext = "exe" if sys.platform == "win32" else "app" if sys.platform == "darwin" else "bin"
         print(f"\nSUCCESS: LLMScribePro has been generated in {project_root / 'dist'}")
     except Exception as e:
         print(f"\nFAILED: Error during packaging: {e}")
