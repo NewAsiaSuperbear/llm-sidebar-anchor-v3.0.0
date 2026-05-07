@@ -1,7 +1,6 @@
 import os
 import subprocess
 import sys
-import argparse
 from pathlib import Path
 
 
@@ -48,12 +47,6 @@ def _ensure_venv_and_deps(project_root: Path, *, force: bool = False) -> Path:
     return python_exe
 
 
-def _ensure_import_paths(project_root: Path) -> None:
-    src_path = str(project_root / "src")
-    if src_path not in sys.path:
-        sys.path.insert(0, src_path)
-
-
 def _configure_dev_env(project_root: Path) -> None:
     dev_data_dir = project_root / ".devdata"
     os.environ.setdefault("LLM_SCRIBE_DATA_DIR", str(dev_data_dir))
@@ -61,45 +54,14 @@ def _configure_dev_env(project_root: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(add_help=True)
-    parser.add_argument("--run", action="store_true")
-    args = parser.parse_args()
-
     project_root = _project_root()
     venv_python = _ensure_venv_and_deps(project_root)
 
-    if not args.run and Path(sys.executable).resolve() != venv_python.resolve():
-        cmd = [str(venv_python), str(Path(__file__).resolve()), "--run"]
-        raise SystemExit(subprocess.call(cmd, cwd=str(project_root)))
-
     _configure_dev_env(project_root)
-    _ensure_import_paths(project_root)
-
-    from llm_scribe.ui.main_window import MainWindow
-
-    app = MainWindow()
-
-    def seed_demo() -> None:
-        app.create_new_session("LaTeX Demo")
-        sample = "\n".join(
-            [
-                "Inline: $E=mc^2$, $\\frac{a}{b}$, $\\sum_{i=1}^n i$",
-                "",
-                "Display:",
-                "$$\\int_0^1 x^2\\,dx = \\frac{1}{3}$$",
-                "",
-                "Bracket display:",
-                "\\[ \\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\varepsilon_0} \\]",
-                "",
-                "Paren inline: \\(\\alpha+\\beta=\\gamma\\)",
-            ]
-        )
-        app._set_raw_content(sample)
-        app._render_view_from_raw()
-        app.save_current_session()
-
-    app.after(50, seed_demo)
-    app.mainloop()
+    env = os.environ.copy()
+    env["LLM_SCRIBE_DATA_DIR"] = os.environ["LLM_SCRIBE_DATA_DIR"]
+    env["LLM_SCRIBE_SALT"] = os.environ["LLM_SCRIBE_SALT"]
+    raise SystemExit(subprocess.call([str(venv_python), "-m", "llm_scribe.main", "--latex-demo"], cwd=str(project_root), env=env))
 
 
 if __name__ == "__main__":

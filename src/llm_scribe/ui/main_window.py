@@ -7,6 +7,16 @@ from tkinter import messagebox, scrolledtext, simpledialog, ttk
 import customtkinter as ctk
 from PIL import Image, ImageTk
 
+try:
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+    from matplotlib.figure import Figure
+
+    _HAS_MPL = True
+except Exception:
+    FigureCanvas = None
+    Figure = None
+    _HAS_MPL = False
+
 from llm_scribe.config import APP_NAME, COLORS, VERSION
 from llm_scribe.core.clipboard_monitor import ClipboardMonitor
 from llm_scribe.core.data_manager import DataManager
@@ -733,14 +743,7 @@ LLM Scribe Pro - Usage Guide / 使用指南
     def _is_latex_render_enabled(self):
         if self._latex_render_available is not None:
             return self._latex_render_available
-        try:
-            import matplotlib  # noqa: F401
-            from matplotlib.figure import Figure  # noqa: F401
-            from matplotlib.backends.backend_agg import FigureCanvasAgg  # noqa: F401
-
-            self._latex_render_available = True
-        except Exception:
-            self._latex_render_available = False
+        self._latex_render_available = _HAS_MPL
         return self._latex_render_available
 
     def _render_latex_image(self, latex, display_mode=False):
@@ -748,9 +751,6 @@ LLM Scribe Pro - Usage Guide / 使用指南
             return None
 
         try:
-            from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-            from matplotlib.figure import Figure
-
             fg = COLORS.get("text", "#E6E6E6")
             base = int(self.view_font_size.get())
             font_size = max(7, base - 3) if not display_mode else max(8, base - 2)
