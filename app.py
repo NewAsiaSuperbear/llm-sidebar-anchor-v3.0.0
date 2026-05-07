@@ -48,7 +48,7 @@ def _run(cmd: list[str], *, cwd: Path) -> None:
 
 
 def _has_deps(python_exe: Path) -> bool:
-    check_code = "import customtkinter,cryptography,pystray,pynput,PIL,dotenv,requests,jinja2,markdown,pygments"
+    check_code = "import customtkinter,cryptography,pystray,pynput,PIL,dotenv,requests,jinja2,markdown,pygments,matplotlib"
     try:
         subprocess.check_call(
             [str(python_exe), "-c", check_code],

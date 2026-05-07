@@ -1,8 +1,11 @@
+import io
 import os
+import re
 import tkinter as tk
 from tkinter import messagebox, scrolledtext, simpledialog, ttk
 
 import customtkinter as ctk
+from PIL import Image, ImageTk
 
 from llm_scribe.config import APP_NAME, COLORS, VERSION
 from llm_scribe.core.clipboard_monitor import ClipboardMonitor
@@ -49,6 +52,19 @@ class MainWindow(ctk.CTk):
         self.is_always_on_top = tk.BooleanVar(value=False)
         self.is_click_through = tk.BooleanVar(value=False)
         self.opacity = tk.DoubleVar(value=1.0)
+        default_view_size = 12
+        try:
+            default_view_size = int(self.fonts.get("main", ("Segoe UI", 12))[1])
+        except Exception:
+            default_view_size = 12
+        self.view_font_size = tk.IntVar(value=default_view_size)
+        self._view_images_by_widget = {}
+        self._latex_render_available = None
+        self._view_render_job = None
+        self._suppress_raw_modified = False
+        self._reader_window = None
+        self._reader_text = None
+        self._reader_size_label = None
 
     def setup_ui(self):
         """Builds the main user interface layout."""
@@ -97,6 +113,13 @@ class MainWindow(ctk.CTk):
             width=60, fg_color=COLORS["card"], command=self.show_usage_guide
         )
         self.guide_btn.pack(side=ctk.LEFT, padx=5)
+
+        self.reader_btn = ctk.CTkButton(
+            self.controls_frame, text="📖 阅读窗", font=self.fonts["bold"],
+            width=90, fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
+            text_color="white", command=self.toggle_reader_window
+        )
+        self.reader_btn.pack(side=ctk.LEFT, padx=5)
 
         # Opacity Slider
         self.opacity_slider = ctk.CTkSlider(
@@ -158,14 +181,38 @@ class MainWindow(ctk.CTk):
         
         self.text_card = ctk.CTkFrame(self.center, fg_color=COLORS["card"], border_color=COLORS["border"], border_width=1)
         self.text_card.pack(fill=ctk.BOTH, expand=True)
-        
-        self.dialog_text = scrolledtext.ScrolledText(
-            self.text_card, wrap=tk.WORD, font=self.fonts["mono"], bg=COLORS["card"], fg=COLORS["text"],
+
+        self.text_split = ctk.CTkFrame(self.text_card, fg_color="transparent")
+        self.text_split.pack(fill=ctk.BOTH, expand=True, padx=10, pady=10)
+
+        self.raw_frame = ctk.CTkFrame(self.text_split, fg_color=COLORS["card"])
+        self.raw_frame.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True, padx=(0, 6))
+        self.view_frame = ctk.CTkFrame(self.text_split, fg_color=COLORS["card"])
+        self.view_frame.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True, padx=(6, 0))
+
+        self.raw_label = ctk.CTkLabel(self.raw_frame, text="源码 (Raw)", font=self.fonts["bold"], text_color=COLORS["text_dim"])
+        self.raw_label.pack(anchor="w", padx=12, pady=(10, 0))
+
+        self.view_label = ctk.CTkLabel(self.view_frame, text="阅读 (View)", font=self.fonts["bold"], text_color=COLORS["text_dim"])
+        self.view_label.pack(anchor="w", padx=12, pady=(10, 0))
+
+        self.raw_text = scrolledtext.ScrolledText(
+            self.raw_frame, wrap=tk.WORD, font=self.fonts["mono"], bg=COLORS["card"], fg=COLORS["text"],
             insertbackground="white", relief=tk.FLAT, padx=20, pady=20, undo=True
         )
-        self.dialog_text.pack(fill=tk.BOTH, expand=True)
-        self.dialog_text.tag_configure("timestamp", foreground=COLORS["accent"], font=("Consolas", 10, "bold"))
-        self.dialog_text.tag_configure("highlight", background=COLORS["highlight"])
+        self.raw_text.pack(fill=tk.BOTH, expand=True, padx=0, pady=(8, 0))
+        self.raw_text.tag_configure("timestamp", foreground=COLORS["accent"], font=("Consolas", 10, "bold"))
+        self.raw_text.tag_configure("highlight", background=COLORS["highlight"])
+        self.raw_text.bind("<<Modified>>", self._on_raw_modified)
+        self.raw_text.bind("<KeyRelease>", lambda _e: self._schedule_view_render())
+
+        self.view_text = scrolledtext.ScrolledText(
+            self.view_frame, wrap=tk.WORD, font=self.fonts["main"], bg=COLORS["card"], fg=COLORS["text"],
+            insertbackground="white", relief=tk.FLAT, padx=20, pady=20
+        )
+        self.view_text.pack(fill=tk.BOTH, expand=True, padx=0, pady=(8, 0))
+        self.view_text.configure(state=tk.DISABLED)
+        self._apply_view_font()
 
         # Right (Tags/Bookmarks)
         self.right_panel = ctk.CTkFrame(self.body, width=280, corner_radius=0, fg_color=COLORS["sidebar"])
@@ -266,33 +313,31 @@ class MainWindow(ctk.CTk):
         guide_text.pack(fill=tk.BOTH, expand=True)
         
         text = """
-LLM Scribe Pro v2.x - Usage Guide / 使用指南
+LLM Scribe Pro - Usage Guide / 使用指南
 
 --- 1. Scribe Mode / 速记模式 ---
-[EN] Toggle the '🚀 Scribe' button to 'ON'. The app will automatically capture anything you copy to your clipboard and append it to the current session with a timestamp.
-[CN] 开启顶部的 '🚀 速记' 按钮为 'ON'. 程序将自动捕捉您复制到剪贴板的任何内容, 并带上时间戳记录到当前会话中。
+[EN] Toggle '🚀 Scribe' to ON. The app captures clipboard text and appends it to the current session with a timestamp.
+[CN] 打开顶部 '🚀 速记' 为 ON。程序会捕捉你复制到剪贴板的文本，并带时间戳追加到当前会话。
 
---- 2. Sessions & Folders / 会话与文件夹 ---
-[EN] Use '📄 New Session' to start a fresh dialogue log. Use '📁 Folder' to categorize and group your sessions. You can drag and drop (planned) or move items using the context menu.
-[CN] 点击 '📄 新建' 开始一段新的对话记录。点击 '📁 归档' 创建文件夹, 帮助您分类管理不同的项目。
+--- 2. Raw vs View / 源码与阅读 ---
+[EN] Raw (left) is the source you store and edit (including LaTeX). View (right) is read-only and renders LaTeX as clean formulas.
+[CN] 左侧“源码”是原文存储与编辑区（包含 LaTeX 源码）；右侧“阅读”仅用于展示，会把 LaTeX 渲染为干净的公式。
 
---- 3. Real-time Search / 实时搜索 ---
-[EN] Type in the search bar to instantly filter sessions by title or content. The list will update as you type.
-[CN] 在搜索框输入关键词, 程序会实时根据标题或内容过滤会话。
+--- 3. Reader Window / 独立阅读窗 ---
+[EN] Click '📖 Reader' to open a separate reading window. Close it to return to split view in the main window.
+[CN] 点击顶部 '📖 阅读窗' 可打开独立阅读窗口；关闭后恢复主窗口双栏显示。
 
---- 4. Bookmarks / 书签 ---
-[EN] In any session, type a name in the bookmark field and click '🔖 Add'. Double-click a bookmark in the right panel to instantly jump to that position.
-[CN] 在会话中, 输入书签名称并点击 '🔖 添加'. 双击右侧面板中的书签, 即可快速跳转到文本中的对应位置。
+--- 4. Font Size / 字号调节 ---
+[EN] In the reader window, use the slider to change font size. Formula size follows the same scale automatically.
+[CN] 在独立阅读窗里用滑条调节字号；公式会自动跟随字号缩放，尽量与正文保持接近。
 
---- 5. Opacity & Pin / 透明度与置顶 ---
-[EN] Use the slider to adjust window transparency. Use the '📌 Pin' checkbox to keep the window always on top of other applications.
-[CN] 使用滑动条调整窗口透明度。勾选 '📌 置顶' 可使窗口始终保持在其他应用程序上方。
+--- 5. Sessions, Search, Export / 会话、搜索、导出 ---
+[EN] Create sessions/folders on the left. Use the search bar to filter by title/content. Export sessions/folders via the context menu.
+[CN] 左侧可新建会话/归档；顶部搜索框可按标题/内容过滤；右键菜单可导出会话或文件夹。
 
---- 6. Security & Data / 安全与数据 ---
-[EN] All data is encrypted and stored locally in your system application data directory (Windows: AppData, macOS: Application Support, Linux: XDG data dir).
-No data is sent to external servers. Use '💾 Backup' regularly to save snapshots of your data.
-[CN] 所有数据均经过加密并存储在本地系统应用数据目录中（Windows: AppData，macOS: Application Support，Linux: XDG 数据目录）。
-数据不会上传到外部服务器。请定期使用 '💾 备份' 功能保存数据快照。
+--- 6. Backup & Security / 备份与安全 ---
+[EN] '💾 Backup' creates a local backup snapshot. Data is stored locally; set LLM_SCRIBE_SALT in .env to keep encryption strong.
+[CN] '💾 备份' 会生成本地备份快照。数据仅本地存储；请在 .env 中设置 LLM_SCRIBE_SALT（随机字符串）以确保加密安全。
         """
         guide_text.insert(tk.END, text.strip())
         guide_text.configure(state=tk.DISABLED) # Read-only
@@ -390,9 +435,10 @@ No data is sent to external servers. Use '💾 Backup' regularly to save snapsho
                     self.create_new_session("自动捕获 (Auto Capture)")
                 
                 # Append content to the editor
-                self.dialog_text.insert(tk.END, f"\n{timestamp} ", "timestamp")
-                self.dialog_text.insert(tk.END, f"{sanitized}\n")
-                self.dialog_text.see(tk.END)
+                self.raw_text.insert(tk.END, f"\n{timestamp} ", "timestamp")
+                self.raw_text.insert(tk.END, f"{sanitized}\n")
+                self.raw_text.see(tk.END)
+                self._schedule_view_render()
                 self.save_current_session()
                 
                 Toast(self, "已记录内容 (Captured)", duration=1500).show()
@@ -519,8 +565,8 @@ No data is sent to external servers. Use '💾 Backup' regularly to save snapsho
             session = self.data_manager.get_session(sid)
             if session:
                 self.session_title_var.set(session["title"])
-                self.dialog_text.delete("1.0", tk.END)
-                self.dialog_text.insert("1.0", session["content"])
+                self._set_raw_content(session["content"])
+                self._render_view_from_raw()
                 self.refresh_tag_list()
                 # Ensure tree selection matches sid without triggering a new select event
                 current_selection = self.tree.selection()
@@ -538,10 +584,281 @@ No data is sent to external servers. Use '💾 Backup' regularly to save snapsho
         """Saves current session content with error handling."""
         try:
             if self.current_session_id:
-                content = self.dialog_text.get("1.0", tk.END).strip()
+                content = self.raw_text.get("1.0", "end-1c")
                 self.data_manager.update_session(self.current_session_id, content=content)
         except Exception as e:
             logger.error(f"Failed to save current session: {e}")
+
+    def _on_raw_modified(self, _event):
+        if self._suppress_raw_modified:
+            try:
+                self.raw_text.edit_modified(False)
+            except Exception:
+                pass
+            return
+
+        try:
+            if self.raw_text.edit_modified():
+                self.raw_text.edit_modified(False)
+                self._schedule_view_render()
+        except Exception:
+            pass
+
+    def _schedule_view_render(self):
+        if self._view_render_job is not None:
+            try:
+                self.after_cancel(self._view_render_job)
+            except Exception:
+                pass
+        self._view_render_job = self.after(250, self._render_view_from_raw)
+
+    def _apply_view_font(self):
+        try:
+            family = self.fonts.get("main", ("Segoe UI", 12))[0]
+        except Exception:
+            family = "Segoe UI"
+        size = int(self.view_font_size.get())
+        font_tuple = (family, size)
+        try:
+            self.view_text.configure(font=font_tuple)
+        except Exception:
+            pass
+        if self._reader_text is not None:
+            try:
+                if self._reader_text.winfo_exists():
+                    self._reader_text.configure(font=font_tuple)
+            except Exception:
+                pass
+
+    def _on_view_font_size_changed(self, value):
+        try:
+            size = int(float(value))
+        except Exception:
+            return
+        self.view_font_size.set(size)
+        if self._reader_size_label is not None:
+            try:
+                if self._reader_size_label.winfo_exists():
+                    self._reader_size_label.configure(text=f"{size}")
+            except Exception:
+                pass
+        self._apply_view_font()
+        self._schedule_view_render()
+
+    def toggle_reader_window(self):
+        if self._reader_window is not None:
+            try:
+                if self._reader_window.winfo_exists():
+                    self._close_reader_window()
+                    return
+            except Exception:
+                self._reader_window = None
+                self._reader_text = None
+                self._reader_size_label = None
+
+        win = ctk.CTkToplevel(self)
+        win.title("阅读窗口 (Reader)")
+        win.geometry("720x720")
+        win.configure(fg_color=COLORS["bg"])
+        win.attributes("-topmost", True)
+        win.protocol("WM_DELETE_WINDOW", self._close_reader_window)
+        self._reader_window = win
+
+        header = ctk.CTkFrame(win, fg_color=COLORS["sidebar"], corner_radius=0, height=56)
+        header.pack(fill=tk.X)
+
+        title = ctk.CTkLabel(header, text="阅读 (View)", font=self.fonts["bold"], text_color=COLORS["text"])
+        title.pack(side=tk.LEFT, padx=16)
+
+        size_label = ctk.CTkLabel(header, text="字号", font=self.fonts["small"], text_color=COLORS["text_dim"])
+        size_label.pack(side=tk.LEFT, padx=(12, 6))
+
+        self._reader_size_label = ctk.CTkLabel(header, text=str(self.view_font_size.get()), font=self.fonts["small"], text_color=COLORS["text"])
+        self._reader_size_label.pack(side=tk.LEFT, padx=(0, 10))
+
+        slider = ctk.CTkSlider(
+            header, from_=10, to=28, width=160,
+            command=self._on_view_font_size_changed
+        )
+        slider.set(float(self.view_font_size.get()))
+        slider.pack(side=tk.LEFT, padx=(0, 12))
+
+        close_btn = ctk.CTkButton(header, text="关闭", width=60, fg_color=COLORS["card"], command=self._close_reader_window)
+        close_btn.pack(side=tk.RIGHT, padx=12)
+
+        body = ctk.CTkFrame(win, fg_color=COLORS["card"], corner_radius=0)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        reader_text = scrolledtext.ScrolledText(
+            body, wrap=tk.WORD, font=self.fonts["main"], bg=COLORS["card"], fg=COLORS["text"],
+            insertbackground="white", relief=tk.FLAT, padx=20, pady=20
+        )
+        reader_text.pack(fill=tk.BOTH, expand=True)
+        reader_text.configure(state=tk.DISABLED)
+        self._reader_text = reader_text
+        self._apply_view_font()
+
+        try:
+            if self.view_frame.winfo_manager():
+                self.view_frame.pack_forget()
+                self.raw_frame.pack_configure(padx=0)
+        except Exception:
+            pass
+
+        self.reader_btn.configure(text="📖 关闭阅读窗", fg_color=COLORS["success"], hover_color=COLORS["success"], text_color="white")
+        self._render_view_from_raw()
+
+    def _close_reader_window(self):
+        try:
+            if self._reader_window is not None and self._reader_window.winfo_exists():
+                self._reader_window.destroy()
+        except Exception:
+            pass
+        self._reader_window = None
+        self._reader_text = None
+        self._reader_size_label = None
+
+        try:
+            if not self.view_frame.winfo_manager():
+                self.raw_frame.pack_configure(padx=(0, 6))
+                self.view_frame.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True, padx=(6, 0))
+        except Exception:
+            pass
+
+        try:
+            self.reader_btn.configure(text="📖 阅读窗", fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"], text_color="white")
+        except Exception:
+            pass
+
+    def _is_latex_render_enabled(self):
+        if self._latex_render_available is not None:
+            return self._latex_render_available
+        try:
+            import matplotlib  # noqa: F401
+            from matplotlib.figure import Figure  # noqa: F401
+            from matplotlib.backends.backend_agg import FigureCanvasAgg  # noqa: F401
+
+            self._latex_render_available = True
+        except Exception:
+            self._latex_render_available = False
+        return self._latex_render_available
+
+    def _render_latex_image(self, latex, display_mode=False):
+        if not self._is_latex_render_enabled():
+            return None
+
+        try:
+            from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+            from matplotlib.figure import Figure
+
+            fg = COLORS.get("text", "#E6E6E6")
+            base = int(self.view_font_size.get())
+            font_size = max(7, base - 3) if not display_mode else max(8, base - 2)
+            dpi = 200
+
+            fig = Figure(figsize=(0.01, 0.01), dpi=dpi)
+            fig.patch.set_alpha(0.0)
+            ax = fig.add_subplot(111)
+            ax.set_axis_off()
+            ax.set_facecolor((0, 0, 0, 0))
+
+            ax.text(0.0, 0.0, f"${latex}$", fontsize=font_size, color=fg, va="bottom", ha="left")
+            canvas = FigureCanvas(fig)
+            canvas.draw()
+
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", dpi=dpi, transparent=True, bbox_inches="tight", pad_inches=0.05)
+            buf.seek(0)
+            img = Image.open(buf).convert("RGBA")
+            return ImageTk.PhotoImage(img)
+        except Exception:
+            return None
+
+    def _iter_latex_spans(self, text):
+        pattern = re.compile(
+            r"(\$\$(?P<display_dollar>.+?)\$\$|\\\[(?P<display_bracket>.+?)\\\]|\\\((?P<inline_paren>.+?)\\\)|(?<!\\)\$(?P<inline_dollar>.+?)(?<!\\)\$)",
+            re.DOTALL,
+        )
+        for match in pattern.finditer(text):
+            start, end = match.span(0)
+            if match.group("display_dollar") is not None:
+                yield start, end, match.group("display_dollar"), True
+            elif match.group("display_bracket") is not None:
+                yield start, end, match.group("display_bracket"), True
+            elif match.group("inline_paren") is not None:
+                yield start, end, match.group("inline_paren"), False
+            else:
+                yield start, end, match.group("inline_dollar"), False
+
+    def _insert_view_text_with_latex(self, widget, images, text):
+        if not text:
+            return
+
+        cursor = 0
+        for start, end, latex, display_mode in self._iter_latex_spans(text):
+            if start > cursor:
+                widget.insert(tk.END, text[cursor:start])
+
+            raw_src = text[start:end]
+            img = self._render_latex_image(latex.strip(), display_mode=display_mode)
+            if img is None:
+                widget.insert(tk.END, raw_src)
+            else:
+                if display_mode:
+                    widget.insert(tk.END, "\n")
+                images.append(img)
+                widget.image_create(tk.END, image=img)
+                if display_mode:
+                    widget.insert(tk.END, "\n")
+
+            cursor = end
+
+        if cursor < len(text):
+            widget.insert(tk.END, text[cursor:])
+
+    def _set_raw_content(self, content):
+        try:
+            self._suppress_raw_modified = True
+            self.raw_text.delete("1.0", tk.END)
+            self.raw_text.insert("1.0", content or "")
+            try:
+                self.raw_text.edit_modified(False)
+            except Exception:
+                pass
+        finally:
+            self._suppress_raw_modified = False
+
+    def _render_view_from_raw(self):
+        self._view_render_job = None
+        raw = ""
+        try:
+            raw = self.raw_text.get("1.0", "end-1c")
+        except Exception:
+            return
+
+        targets = []
+        if hasattr(self, "view_text") and self.view_text is not None:
+            targets.append(self.view_text)
+        if self._reader_text is not None:
+            try:
+                if self._reader_text.winfo_exists():
+                    targets.append(self._reader_text)
+            except Exception:
+                pass
+
+        for widget in targets:
+            try:
+                images = []
+                self._view_images_by_widget[widget] = images
+                widget.configure(state=tk.NORMAL)
+                widget.delete("1.0", tk.END)
+                self._insert_view_text_with_latex(widget, images, raw)
+                widget.configure(state=tk.DISABLED)
+            except Exception:
+                try:
+                    widget.configure(state=tk.DISABLED)
+                except Exception:
+                    pass
 
     def rename_item(self):
         """Renames the selected session or folder with thread safety."""
@@ -617,7 +934,10 @@ No data is sent to external servers. Use '💾 Backup' regularly to save snapsho
                 self.data_manager.delete_item(iid)
                 if iid == self.current_session_id:
                     self.current_session_id = None
-                    self.dialog_text.delete("1.0", tk.END)
+                    self.raw_text.delete("1.0", tk.END)
+                    self.view_text.configure(state=tk.NORMAL)
+                    self.view_text.delete("1.0", tk.END)
+                    self.view_text.configure(state=tk.DISABLED)
                     self.session_title_var.set("已选择 (None)")
                 self.refresh_tree()
         except Exception as e:
@@ -629,7 +949,7 @@ No data is sent to external servers. Use '💾 Backup' regularly to save snapsho
             name = self.tag_entry.get().strip()
             if not name or not self.current_session_id:
                 return
-            pos = self.dialog_text.index(tk.INSERT)
+            pos = self.raw_text.index(tk.INSERT)
             session = self.data_manager.get_session(self.current_session_id)
             if session:
                 session["tags"].append({"name": sanitize_input(name), "pos": pos})
@@ -654,11 +974,11 @@ No data is sent to external servers. Use '💾 Backup' regularly to save snapsho
             session = self.data_manager.get_session(self.current_session_id)
             if session and idx < len(session["tags"]):
                 tag = session["tags"][idx]
-                self.dialog_text.tag_remove("highlight", "1.0", tk.END)
+                self.raw_text.tag_remove("highlight", "1.0", tk.END)
                 try:
-                    self.dialog_text.see(tag["pos"])
+                    self.raw_text.see(tag["pos"])
                     line = tag["pos"].split('.')[0]
-                    self.dialog_text.tag_add("highlight", f"{line}.0", f"{line}.end")
+                    self.raw_text.tag_add("highlight", f"{line}.0", f"{line}.end")
                 except Exception:
                     pass
 

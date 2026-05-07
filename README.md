@@ -10,6 +10,8 @@
 - **Hardware-Bound Security**: Local data encryption using PBKDF2 + Fernet, tied to your machine's hardware ID.
 - **Advanced Export**: Seamless integration with **Obsidian** and **Logseq** via customizable templates (Jinja2).
 - **AI-Ready**: Built-in abstraction for local AI providers like **Ollama**.
+- **Raw + View Reading**: Store/edit raw text (including LaTeX) while a separate view renders clean math formulas for humans.
+- **Optional Reader Window**: Pop out an independent reading window and adjust font size; formula size follows.
 - **Privacy First**: Zero data leaves your machine. No cloud, no tracking.
 
 ---
@@ -63,8 +65,19 @@ This launcher will automatically create/reuse a virtual environment and install 
 
 ### Run the Application
 ```bash
-python src/llm_scribe/main.py
+python -m llm_scribe.main
 ```
+
+### Reader View / 阅读模式
+- **Raw (源码)**: what gets saved to disk; keep your original LaTeX source here.
+- **View (阅读)**: renders LaTeX formulas as images for clean reading.
+- **Reader Window (阅读窗)**: click the `📖 阅读窗` button to pop out a separate reading window; adjust font size with the slider.
+
+### LaTeX Demo (for testing) / LaTeX 演示（用于测试）
+```bash
+python scripts/latex_demo.py
+```
+This demo uses a separate local data directory: `<repo>/.devdata` to avoid polluting your real data.
 
 ### Build Standalone EXE (Windows)
 ```bash
@@ -77,9 +90,7 @@ The generated app bundle will be in the `dist/` folder (Windows: `.exe`, macOS: 
 
 ## 📂 Project Structure
 - `src/llm_scribe/`: Core package containing UI, Core logic, and Utils.
-- `assets/`: UI resources and icons.
-- `docs/`: Documentation and guides.
-- `scripts/`: Build and deployment scripts.
+- `scripts/`: Helper scripts (build, demos).
 - `tests/`: Unit and integration tests.
 
 ---

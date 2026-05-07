@@ -19,6 +19,8 @@ added_files = [
 hiddenimports = [
     "PIL.ImageTk",
     "PIL.ImageResampling",
+    "matplotlib",
+    "matplotlib.backends.backend_agg",
     "llm_scribe.ui.styles",
     "llm_scribe.ui.components",
     "llm_scribe.core.ollama_provider",
